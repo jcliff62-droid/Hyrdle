@@ -53,8 +53,12 @@
         /* Keyboard */
         #keyboard { width: 100%; padding: 0 10px; }
         .key-row { display: flex; justify-content: center; gap: 6px; margin-bottom: 8px; }
-        .key { font-size: 1.2rem; font-weight: bold; padding: 15px 0; border-radius: 4px; background: var(--key-bg); cursor: pointer; flex: 1; display: flex; justify-content: center; user-select: none; position: relative; }
-        .key.wide { flex: 1.5; font-size: 0.9rem; }
+        
+        /* Setting max-width to 45px ensures the top row of 5 vowels doesn't stretch huge, 
+           and stays perfectly proportional and centered to the 10 keys below it */
+        .key { font-size: 1.2rem; font-weight: bold; padding: 15px 0; border-radius: 4px; background: var(--key-bg); cursor: pointer; flex: 1; max-width: 45px; display: flex; justify-content: center; user-select: none; position: relative; }
+        .key.wide { flex: 1.5; font-size: 0.9rem; max-width: 65px; }
+        
         .key[data-state='correct'] { background-color: var(--correct); }
         .key[data-state='present'] { background-color: var(--present); }
         
@@ -165,7 +169,6 @@
 
     const snarks = ["My cat types better than that.", "Did you fall asleep on the keyboard?", "Are you even trying?", "I've seen goldfish with better vocabulary.", "Maybe try a dictionary next time?", "Oof. That was painful to watch.", "Not even close, ace."];
 
-    // Initialize leaderboard immediately so it's visible on the login screen
     renderLeaderboard();
 
     async function initDictionary() {
@@ -175,7 +178,6 @@
             const words = (await res.text()).split('\n').map(w => w.trim().toUpperCase()).filter(w => w.length === 5);
             dictionary = new Set(words);
             
-            // Generate Daily Word
             let hash = 0;
             for(let i=0; i<todayStr.length; i++) hash = ((hash << 5) - hash) + todayStr.charCodeAt(i);
             
@@ -236,13 +238,20 @@
 
     function initKeyboard() {
         const kb = document.getElementById('keyboard');
-        ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"].forEach((row, i) => {
+        // Added the pure Vowels array to the front
+        ["AEIOU", "QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"].forEach((row, i) => {
             const rDiv = document.createElement('div'); rDiv.className = 'key-row';
-            if(i === 2) { const e = document.createElement('div'); e.className='key wide'; e.innerText="ENTER"; e.onclick=submitGuess; rDiv.appendChild(e); }
+            // Index 3 is now the bottom row containing Z-M and the wide buttons
+            if(i === 3) { const e = document.createElement('div'); e.className='key wide'; e.innerText="ENTER"; e.onclick=submitGuess; rDiv.appendChild(e); }
             row.split('').forEach(char => {
-                const k = document.createElement('div'); k.className='key'; k.id=`key-${char}`; k.innerText=char; k.onclick=()=>handleKey(char); rDiv.appendChild(k);
+                const k = document.createElement('div'); 
+                k.className='key'; 
+                k.setAttribute('data-key', char); // Use data attribute instead of ID so we can select duplicates
+                k.innerText=char; 
+                k.onclick=()=>handleKey(char); 
+                rDiv.appendChild(k);
             });
-            if(i === 2) { const b = document.createElement('div'); b.className='key wide'; b.innerText="⌫"; b.onclick=backspace; rDiv.appendChild(b); }
+            if(i === 3) { const b = document.createElement('div'); b.className='key wide'; b.innerText="⌫"; b.onclick=backspace; rDiv.appendChild(b); }
             kb.appendChild(rDiv);
         });
     }
@@ -298,11 +307,15 @@
             setTimeout(() => {
                 const t = document.getElementById(`tile-${currentRow}-${i}`);
                 t.setAttribute('data-state', st); t.removeAttribute('data-active'); t.style.color='white';
-                const k = document.getElementById(`key-${guessArr[i]}`);
-                const old = k.getAttribute('data-state');
-                if(st === 'correct') k.setAttribute('data-state', 'correct');
-                else if(st === 'present' && old !== 'correct') k.setAttribute('data-state', 'present');
-                else if(st === 'absent' && old !== 'correct' && old !== 'present') k.setAttribute('data-state', 'absent');
+                
+                // Select BOTH instances of the key (vowel row + qwerty row) and update them simultaneously
+                const keys = document.querySelectorAll(`.key[data-key='${guessArr[i]}']`);
+                keys.forEach(k => {
+                    const old = k.getAttribute('data-state');
+                    if(st === 'correct') k.setAttribute('data-state', 'correct');
+                    else if(st === 'present' && old !== 'correct') k.setAttribute('data-state', 'present');
+                    else if(st === 'absent' && old !== 'correct' && old !== 'present') k.setAttribute('data-state', 'absent');
+                });
             }, i * 250);
         });
 
@@ -321,14 +334,12 @@
             if(won) {
                 saveScore(elapsed, currentRow+1); 
                 
-                // Explicitly ensure fireworks canvas is visible every time
                 document.getElementById('fireworks').style.display = 'block';
                 startFireworks();
                 
                 document.getElementById('win-view').style.display = 'block';
                 document.getElementById('final-score').innerText = `Time: ${elapsed}s | Guesses: ${currentRow+1}`;
                 
-                // Fireworks timeout explicitly set to stop at 4 seconds
                 setTimeout(() => document.getElementById('fireworks').style.display='none', 4000);
             } else {
                 document.getElementById('lose-view').style.display = 'block';
@@ -361,7 +372,6 @@
         }
 
         data.forEach((e, i) => {
-            // Number 1 Leader gets a +2pt font size increase and bold style
             const styleString = i === 0 ? `style="font-size: calc(0.9rem + 2pt); font-weight: bold; color: #fff;"` : '';
             const rowHtml = `<tr ${styleString}><td>${i+1}</td><td>${e.name}</td><td>${e.time}s</td><td>${e.guesses}</td></tr>`;
             
@@ -391,7 +401,6 @@
         }
         anim(); 
         
-        // Stop animation engine strictly at 4 seconds
         setTimeout(() => {
             run=false;
             ctx.clearRect(0,0,cvs.width,cvs.height);

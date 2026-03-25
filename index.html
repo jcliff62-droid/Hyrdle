@@ -18,7 +18,9 @@
         }
 
         * { box-sizing: border-box; font-family: 'Helvetica Neue', Arial, sans-serif; }
-        body { background-color: var(--hp-bg); color: white; margin: 0; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; }
+        
+        /* Updated body to allow vertical scrolling on small phones while hiding horizontal overflow */
+        body { background-color: var(--hp-bg); color: white; margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow-x: hidden; overflow-y: auto; }
 
         /* Login Modal */
         #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(18,18,18,0.98); z-index: 2000; display: flex; justify-content: center; align-items: center; }
@@ -53,9 +55,6 @@
         /* Keyboard */
         #keyboard { width: 100%; padding: 0 10px; }
         .key-row { display: flex; justify-content: center; gap: 6px; margin-bottom: 8px; }
-        
-        /* Setting max-width to 45px ensures the top row of 5 vowels doesn't stretch huge, 
-           and stays perfectly proportional and centered to the 10 keys below it */
         .key { font-size: 1.2rem; font-weight: bold; padding: 15px 0; border-radius: 4px; background: var(--key-bg); cursor: pointer; flex: 1; max-width: 45px; display: flex; justify-content: center; user-select: none; position: relative; }
         .key.wide { flex: 1.5; font-size: 0.9rem; max-width: 65px; }
         
@@ -89,8 +88,8 @@
         .thumb { font-size: 5rem; display: inline-block; animation: rotateDown 1s forwards; }
         .snark-text { color: #ff6b6b; font-size: 1.4rem; font-style: italic; margin-top: 10px; }
         
-        /* Fireworks Z-index updated to 3500 so it appears OVER the modal */
-        #fireworks { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3500; }
+        /* Fixed position to avoid scrollbars appearing when off-screen */
+        #fireworks { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3500; }
     </style>
 </head>
 <body>
@@ -129,6 +128,11 @@
         <div class="grid" id="grid"></div>
         <div id="keyboard"></div>
     </div>
+
+    <!-- Footer with Two Blank Lines -->
+    <footer style="width: 100%; text-align: center;">
+        <br><br>
+    </footer>
 
     <!-- Main Game Leaderboard -->
     <div id="leaderboard-container">
@@ -238,15 +242,13 @@
 
     function initKeyboard() {
         const kb = document.getElementById('keyboard');
-        // Added the pure Vowels array to the front
         ["AEIOU", "QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"].forEach((row, i) => {
             const rDiv = document.createElement('div'); rDiv.className = 'key-row';
-            // Index 3 is now the bottom row containing Z-M and the wide buttons
             if(i === 3) { const e = document.createElement('div'); e.className='key wide'; e.innerText="ENTER"; e.onclick=submitGuess; rDiv.appendChild(e); }
             row.split('').forEach(char => {
                 const k = document.createElement('div'); 
                 k.className='key'; 
-                k.setAttribute('data-key', char); // Use data attribute instead of ID so we can select duplicates
+                k.setAttribute('data-key', char); 
                 k.innerText=char; 
                 k.onclick=()=>handleKey(char); 
                 rDiv.appendChild(k);
@@ -308,7 +310,6 @@
                 const t = document.getElementById(`tile-${currentRow}-${i}`);
                 t.setAttribute('data-state', st); t.removeAttribute('data-active'); t.style.color='white';
                 
-                // Select BOTH instances of the key (vowel row + qwerty row) and update them simultaneously
                 const keys = document.querySelectorAll(`.key[data-key='${guessArr[i]}']`);
                 keys.forEach(k => {
                     const old = k.getAttribute('data-state');
